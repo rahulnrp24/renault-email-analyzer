@@ -3,8 +3,16 @@ import pandas as pd
 from nltk.sentiment import SentimentIntensityAnalyzer
 import nltk
 nltk.download('vader_lexicon')
+# ---- Add this right after your imports ----
+from PIL import Image
+import requests
+from io import BytesIO
+
+# Your image URL (upload to Imgur/GitHub first)
+LOGO_URL = "https://rntbci.in/images/rntbci-logo.svg"  # ← Replace with your image URL
 
 # --- Configure App ---
+st.image(LOGO_URL, width=80)
 st.set_page_config(page_title="Renault-Nissan AI Email Scanner", layout="wide")
 st.image("https://www.renault.com/content/dam/renault/header/logo.png", width=200)
 
