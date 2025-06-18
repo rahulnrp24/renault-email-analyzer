@@ -12,12 +12,6 @@ if password != "Renault2025":
     st.error("Invalid key")
     st.stop()  # Halt the app
 
-st.set_page_config(
-    page_title="Renault-Nissan Email Analyzer",
-    page_icon=logo_url,  # This sets the browser tab icon
-    layout="wide"
-)
-
 # ---- Main App ----
 # Display large logo at top
 st.image(logo_url, width=200)  # Adju
