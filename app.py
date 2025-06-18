@@ -4,15 +4,13 @@ from nltk.sentiment import SentimentIntensityAnalyzer
 import nltk
 nltk.download('vader_lexicon')
 
-
+# Add to the top of app.py
+st.image("https://www.renault.com/content/dam/renault/header/logo.png", width=200)
+st.markdown("<h1 style='color: #003087;'>Renault-Nissan AI Email Scanner</h1>", unsafe_allow_html=True)
 password = st.text_input("Enter access key:", type="password")
-if password != "Renault2025":  
+if password != "Renault2023":  # Change this!
     st.error("Invalid key")
     st.stop()  # Halt the app
-
-# ---- Main App ----
-# Display large logo at top
-st.image(logo_url, width=200)  # Adju
 
 # --- App Config ---
 st.set_page_config(page_title="Renault Email Analyzer", layout="wide")
