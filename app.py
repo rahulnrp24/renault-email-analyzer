@@ -4,100 +4,86 @@ from nltk.sentiment import SentimentIntensityAnalyzer
 import nltk
 nltk.download('vader_lexicon')
 
-# Add to the top of app.py
+# --- Configure App ---
+st.set_page_config(page_title="Renault-Nissan AI Email Scanner", layout="wide")
 st.image("https://www.renault.com/content/dam/renault/header/logo.png", width=200)
-st.markdown("<h1 style='color: #003087;'>Renault-Nissan AI Email Scanner</h1>", unsafe_allow_html=True)
-password = st.text_input("Enter access key:", type="password")
-if password != "Renault2023":  # Change this!
-    st.error("Invalid key")
-    st.stop()  # Halt the app
 
-# --- App Config ---
-st.set_page_config(page_title="Renault Email Analyzer", layout="wide")
-st.title("🚗 Renault-Nissan Email Sentiment Analyzer")
-st.write("Upload emails (CSV) to detect negativity and clarity issues.")
+# --- Sentiment Scales ---
+def get_smiley_scale(score):
+    if score >= 80: return "😊"  # Very positive
+    elif score >= 60: return "🙂"  # Positive
+    elif score >= 40: return "😐"  # Neutral
+    elif score >= 20: return "🙁"  # Negative
+    else: return "😠"  # Very negative
 
-# --- Sample Data (Fallback) ---
-sample_data = {
-    "Email": [
-        "The test results were unsatisfactory.",
-        "Please review the attached specs by EOD.",
-        "Great progress on the project!"
-    ],
-    "Sender": [
-        "manager@renault.com",
-        "team@nissan.com",
-        "ceo@nissan.com"
-    ]
-}
-
-# --- File Uploader ---
-uploaded_file = st.file_uploader("Upload CSV", type=["csv"])
-data = pd.DataFrame(sample_data)  # Default to sample data
-if uploaded_file:
-    data = pd.read_csv(uploaded_file)
-
-# --- Analysis Button ---
-if st.button("🔍 Analyze Emails", type="primary"):  # <-- THIS TRIGGERS EVERYTHING
-    # Initialize analyzer
+def analyze_mail(text):
     sia = SentimentIntensityAnalyzer()
-    
-    # Process emails
-    results = []
-    for _, row in data.iterrows():
-        text = row["Email"]
-        
-        # Sentiment Analysis
-        sentiment = sia.polarity_scores(text)
-        negativity = round(sentiment['neg'] * 100, 1)
-        
-        # Clarity Analysis (Simple Example)
-        vague_terms = ["maybe", "later", "unsure", "perhaps"]
-        vague_count = sum(text.lower().count(term) for term in vague_terms)
-        clarity = max(0, 100 - vague_count * 20)  # Deduct 20% per vague term
-        
-        # Action Recommendation
-        if negativity > 70:
-            action = "🚨 High Negativity"
-            color = "#FFCCCB"  # Light red
-        elif clarity < 60:
-            action = "💬 Needs Clarification"
-            color = "#FFF4BD"  # Light yellow
-        else:
-            action = "✅ OK"
-            color = "#C8E6C9"  # Light green
-            
-        results.append({
-            "Email": text,
-            "Sender": row["Sender"],
-            "Negativity %": negativity,
-            "Clarity %": clarity,
-            "Action": action,
-            "Color": color
-        })
+    sentiment = sia.polarity_scores(text)
+    negativity = round(sentiment['neg'] * 100, 1)
+    positivity = round(sentiment['pos'] * 100, 1)
+    smiley = get_smiley_scale(positivity - negativity)
+    return negativity, positivity, smiley
 
-    # --- Display Results ---
-    st.subheader("Analysis Results")
-    
-    # 1. Color-Coded Table
-    results_df = pd.DataFrame(results)
-    st.dataframe(
-        results_df.style.apply(lambda x: [f"background-color: {x['Color']}"] * len(x), axis=1),
-        hide_index=True,
-        column_order=["Email", "Negativity %", "Clarity %", "Action"],
-        height=300
-    )
-    
-    # 2. Visualizations
-    col1, col2 = st.columns(2)
-    with col1:
-        st.bar_chart(results_df, x="Sender", y="Negativity %")
-    with col2:
-        st.bar_chart(results_df, x="Sender", y="Clarity %")
+# --- Main App ---
+st.title("Renault-Nissan Email Sentiment Analyzer")
 
-    # 3. Download Button
-    st.download_button(
-        label="📥 Download Analysis",
-        data=results_df.to_csv(index=False),
-        file_name="email_analysis.csv"
-    )
+# Date range selector
+date_range = st.date_input("Select analysis period:", [])
+
+# File uploader
+uploaded_file = st.file_uploader("Upload Email CSV", type=["csv"])
+
+if uploaded_file:
+    emails = pd.read_csv(uploaded_file)
+    
+    # Ensure required columns exist
+    if all(col in emails.columns for col in ['Email', 'Sender', 'Date']):
+        
+        # Scale A: Individual Mail Analysis
+        st.subheader("📧 Per-Mail Analysis")
+        emails[['Negativity%', 'Positivity%', 'Mood']] = emails['Email'].apply(
+            lambda x: pd.Series(analyze_mail(x))
+        
+        # Scale B: Sender-Receiver Pairs
+        st.subheader("👥 Sender/Receiver Trends")
+        sender_stats = emails.groupby('Sender').agg({
+            'Negativity%': 'mean',
+            'Positivity%': 'mean'
+        }).reset_index()
+        sender_stats['Mood'] = sender_stats.apply(
+            lambda x: get_smiley_scale(x['Positivity%'] - x['Negativity%']), axis=1)
+        
+        # Scale C: Overall Period Analysis
+        st.subheader("📅 Period Summary")
+        overall = {
+            'Avg Negativity': emails['Negativity%'].mean(),
+            'Avg Positivity': emails['Positivity%'].mean(),
+            'Overall Mood': get_smiley_scale(
+                emails['Positivity%'].mean() - emails['Negativity%'].mean())
+        }
+        
+        # Display all scales
+        col1, col2, col3 = st.columns(3)
+        with col1:
+            st.dataframe(emails[['Sender', 'Email', 'Mood']].head(10))
+        with col2:
+            st.dataframe(sender_stats)
+        with col3:
+            st.metric("Overall Mood", overall['Overall Mood'])
+        
+        # Smiley visualization
+        st.subheader("😊 Smiley Scale Guide")
+        st.write("""
+        | Score Range | Mood        | Smiley |
+        |-------------|-------------|--------|
+        | 80-100      | Very Positive | 😊     |
+        | 60-79       | Positive    | 🙂     |
+        | 40-59       | Neutral     | 😐     |
+        | 20-39       | Negative    | 🙁     |
+        | 0-19        | Very Negative | 😠     |
+        """)
+        
+    else:
+        st.error("CSV must contain 'Email', 'Sender', and 'Date' columns")
+else:
+    st.info("Please upload a CSV file to begin analysis")
