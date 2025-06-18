@@ -12,7 +12,7 @@ from io import BytesIO
 LOGO_URL = "https://rntbci.in/images/rntbci-logo.svg"  # ← Replace with your image URL
 
 # --- Configure App ---
-st.image(LOGO_URL, width=80)
+st.image(LOGO_URL, width=200)
 st.set_page_config(page_title="Renault-Nissan AI Email Scanner", layout="wide")
 st.image("https://www.renault.com/content/dam/renault/header/logo.png", width=200)
 
