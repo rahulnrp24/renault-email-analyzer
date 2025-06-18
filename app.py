@@ -7,6 +7,11 @@ nltk.download('vader_lexicon')
 st.image("https://www.renault.com/content/dam/renault/header/logo.png", width=200)
 st.markdown("<h1 style='color: #003087;'>Renault-Nissan AI Email Scanner</h1>", unsafe_allow_html=True)
 
+password = st.text_input("Enter access key:", type="password")
+if password != "Renault2023":  # Change this!
+    st.error("Invalid key")
+    st.stop()  # Halt the app
+
 # --- App Config ---
 st.set_page_config(page_title="Renault Email Analyzer", layout="wide")
 st.title("🚗 Renault-Nissan Email Sentiment Analyzer")
