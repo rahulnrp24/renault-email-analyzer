@@ -39,12 +39,12 @@ if uploaded_file:
     # Ensure required columns exist
     if all(col in emails.columns for col in ['Email', 'Sender', 'Date']):
         
-        # Scale A: Individual Mail Analysis
+        # --- Scale A: Individual Mail Analysis ---
         st.subheader("📧 Per-Mail Analysis")
-        emails[['Negativity%', 'Positivity%', 'Mood']] = emails['Email'].apply()
-            lambda x: pd.Series(analyze_mail(x))
+        emails[['Negativity%', 'Positivity%', 'Mood']] = emails['Email'].apply(
+            lambda x: pd.Series(analyze_mail(x)))  # Removed extra parenthesis
         
-        # Scale B: Sender-Receiver Pairs
+        # --- Scale B: Sender-Receiver Pairs ---
         st.subheader("👥 Sender/Receiver Trends")
         sender_stats = emails.groupby('Sender').agg({
             'Negativity%': 'mean',
