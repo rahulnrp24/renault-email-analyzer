@@ -3,9 +3,7 @@ import pandas as pd
 from nltk.sentiment import SentimentIntensityAnalyzer
 import nltk
 nltk.download('vader_lexicon')
-# Add to the top of app.py
-st.image("https://www.renault.com/content/dam/renault/header/logo.png", width=200)
-st.markdown("<h1 style='color: #003087;'>Renault-Nissan AI Email Scanner</h1>", unsafe_allow_html=True)
+
 
 password = st.text_input("Enter access key:", type="password")
 if password != "Renault2025":  
