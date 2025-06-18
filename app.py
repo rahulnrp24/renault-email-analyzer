@@ -31,3 +31,7 @@ sample_data = {
 # File uploader
 uploaded_file = st.file_uploader("Upload CSV", type="csv")
 data = pd.DataFrame(sample_data)
+
+if st.button("Analyze Emails 🔍"):
+    # Your analysis code here
+    st.write("Analysis complete!")  # Test message
