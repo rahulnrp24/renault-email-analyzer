@@ -41,7 +41,7 @@ if uploaded_file:
         
         # Scale A: Individual Mail Analysis
         st.subheader("📧 Per-Mail Analysis")
-        emails[['Negativity%', 'Positivity%', 'Mood']] = emails['Email'].apply(
+        emails[['Negativity%', 'Positivity%', 'Mood']] = emails['Email'].apply()
             lambda x: pd.Series(analyze_mail(x))
         
         # Scale B: Sender-Receiver Pairs
