@@ -62,16 +62,33 @@ st.title("Renault-Nissan Email Sentiment Analyzer")
 date_range = st.date_input("Select analysis period:", [])
 
 
+for _, row in emails.iterrows():
+    text = row["Email"]
+    sender = row["Sender"]
     
-st.subheader(f"Analysis: {row['Sender']}")
-    col1, col2 = st.columns(2)
+    # --- Existing Analysis ---
+    negativity, clarity, smiley = analyze_mail(text)  # Your current function
     
+    # --- NEW: Layout ---
+    col1, col2 = st.columns(2)  # <- This line MUST align with the 'for' statement
     with col1:
-        st.metric("Negativity", f"{negativity}%")
-        st.metric("Clarity", f"{clarity}%")
-    
+        st.metric("Negativity Score", f"{negativity}%")
+        st.metric("Clarity Score", f"{clarity}%")
     with col2:
-        st.metric("Suggested Action", smiley)  # Your existing smiley
+        st.metric("Suggested Action", smiley)
+    
+    # --- Suggestions ---
+    suggestions = generate_suggestions(text, negativity, clarity)
+    with st.expander("🛠️ Improvement Recommendations", expanded=True):
+        st.markdown("**✍️ Sender Should:**")
+        for suggestion in suggestions['sender']:
+            st.write(f"- {suggestion}")
+        
+        st.markdown("**📩 Receiver Should:**")
+        for suggestion in suggestions['receiver']:
+            st.write(f"- {suggestion}")
+    
+    st.markdown("---")
     
     # NEW: Display suggestions
     suggestions = generate_suggestions(text, negativity, clarity)
