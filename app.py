@@ -2,190 +2,204 @@ import streamlit as st
 import pandas as pd
 from nltk.sentiment import SentimentIntensityAnalyzer
 import nltk
-nltk.download('vader_lexicon')
-# ---- Add this right after your imports ----
 from PIL import Image
-import requests
-from io import BytesIO
+import io
+import datetime
 
-def generate_suggestions(text, negativity, clarity):
-    """Generates AI-powered improvement suggestions"""
-    suggestions = []
-    
-    # Negativity fixes
-    if negativity > 70:
-        suggestions.append("🔴 **High Negativity**: Consider rewording strong language. "
-                         f"Try: 'Please review {text.split()[0]} for improvement'")
-    
-    if clarity < 60:
-        vague_terms = ["maybe", "later", "unsure", "perhaps"]
-        found = [term for term in vague_terms if term in text.lower()]
-        if found:
-            suggestions.append(f"🟡 **Clarity Issue**: Replace vague terms ({', '.join(found)}) "
-                             "with specific deadlines/actions")
-    
-    # Constructive feedback template
-    if any(x in text.lower() for x in ["failed", "wrong", "bad"]):
-        suggestions.append("💡 **Constructive Alternative**: "
-                         "Try: 'Let's improve this together by...'")
-    
-    return suggestions if suggestions else ["✅ No major issues detected"]
+# --- Initialize NLTK ---
+nltk.download('vader_lexicon')
+sia = SentimentIntensityAnalyzer()
 
-# Your image URL (upload to Imgur/GitHub first)
-LOGO_URL = "https://rntbci.in/images/rntbci-logo.svg"  # ← Replace with your image URL
+# --- App Configuration ---
+st.set_page_config(
+    page_title="Renault-Nissan Email AI",
+    page_icon="🚗",
+    layout="wide",
+    initial_sidebar_state="expanded"
+)
 
-# --- Configure App ---
-st.image(LOGO_URL, width=200)
-st.set_page_config(page_title="Renault-Nissan AI Email Scanner", layout="wide")
-st.image("https://www.renault.com/content/dam/renault/header/logo.png", width=200)
+# --- Custom CSS for Professional Look ---
+st.markdown("""
+<style>
+    .main { background-color: #f5f5f5; }
+    .st-emotion-cache-1y4p8pa { padding: 2rem; }
+    .header { color: #003087; }
+    .metric-card { border-radius: 10px; padding: 15px; background: white; box-shadow: 0 4px 6px rgba(0,0,0,0.1); }
+    .negative { color: #d32f2f; }
+    .positive { color: #388e3c; }
+    .st-bq { border-left: 5px solid #003087; }
+</style>
+""", unsafe_allow_html=True)
 
-# --- Sentiment Scales ---
-def get_smiley_scale(score):
-    if score >= 80: return "😊"  # Very positive
-    elif score >= 60: return "🙂"  # Positive
-    elif score >= 40: return "😐"  # Neutral
-    elif score >= 20: return "🙁"  # Negative
-    else: return "😠"  # Very negative
+# --- Branding Header ---
+col1, col2 = st.columns([1, 4])
+with col1:
+    st.image("https://www.renault.com/content/dam/renault/header/logo.png", width=120)
+with col2:
+    st.title("Renault-Nissan Email Sentiment Intelligence")
 
-def analyze_mail(text):
-    sia = SentimentIntensityAnalyzer()
-    sentiment = sia.polarity_scores(text)
-    negativity = round(sentiment['neg'] * 100, 1)
-    positivity = round(sentiment['pos'] * 100, 1)
-    smiley = get_smiley_scale(positivity - negativity)
-    return negativity, positivity, smiley
+# --- Authentication (Demo Version) ---
+password = st.sidebar.text_input("Enter Access Key:", type="password")
+if password != "RNT2024":
+    st.sidebar.error("Invalid credentials")
+    st.stop()
 
-# --- Main App ---
-st.title("Renault-Nissan Email Sentiment Analyzer")
+# --- Navigation ---
+page = st.sidebar.radio("Menu", ["📊 Dashboard", "🔍 Analyze", "📈 Reports"])
 
-# Date range selector
-date_range = st.date_input("Select analysis period:", [])
+# --- Sample Data ---
+SAMPLE_DATA = {
+    "Date": [datetime.date.today()] * 3,
+    "Sender": ["manager@renault.com", "team@nissan.com", "ceo@nissan.com"],
+    "Email": [
+        "The prototype failed safety tests. This needs urgent revision.",
+        "Please review the latest test results by EOD Friday.",
+        "Excellent progress on the EV design! Team recognition needed."
+    ]
+}
 
+# --- Core Analysis Functions ---
+def get_smiley_rating(score):
+    ratings = {
+        80: "😊 Excellent",
+        60: "🙂 Good",
+        40: "😐 Neutral",
+        20: "🙁 Concerning",
+        0: "😠 Critical"
+    }
+    for threshold, label in ratings.items():
+        if score >= threshold:
+            return label
+    return "😠 Critical"
 
-for _, row in emails.iterrows():
-    text = row["Email"]
-    sender = row["Sender"]
-    
-    # --- Existing Analysis ---
-    negativity, clarity, smiley = analyze_mail(text)  # Your current function
-    
-    # --- NEW: Layout ---
-    col1, col2 = st.columns(2)  # <- This line MUST align with the 'for' statement
-    with col1:
-        st.metric("Negativity Score", f"{negativity}%")
-        st.metric("Clarity Score", f"{clarity}%")
-    with col2:
-        st.metric("Suggested Action", smiley)
-    
-    # --- Suggestions ---
-    suggestions = generate_suggestions(text, negativity, clarity)
-    with st.expander("🛠️ Improvement Recommendations", expanded=True):
-        st.markdown("**✍️ Sender Should:**")
-        for suggestion in suggestions['sender']:
-            st.write(f"- {suggestion}")
-        
-        st.markdown("**📩 Receiver Should:**")
-        for suggestion in suggestions['receiver']:
-            st.write(f"- {suggestion}")
-    
-    st.markdown("---")
-    
-    # NEW: Display suggestions
-    suggestions = generate_suggestions(text, negativity, clarity)
-    with st.expander("✏️ Improvement Suggestions", expanded=True):
-        for suggestion in suggestions:
-            st.write(suggestion)
-    
-    st.markdown("---")  # Separator
-    
-    with st.expander("🛠️ **Improvement Recommendations**", expanded=True):
-        # Sender-Focused Fixes
-        st.markdown("**✍️ Sender Should:**")
-        for suggestion in suggestions['sender']:
-            st.write(f"- {suggestion}")
-        
-        # Receiver-Focused Fixes
-        st.markdown("**📩 Receiver Should:**")
-        for suggestion in suggestions['receiver']:
-            st.write(f"- {suggestion}")
-    
-    st.markdown("---")  # Visual separator
+def analyze_email(text):
+    scores = sia.polarity_scores(text)
+    negativity = round(scores['neg'] * 100, 1)
+    positivity = round(scores['pos'] * 100, 1)
+    return {
+        "negativity": negativity,
+        "positivity": positivity,
+        "overall": positivity - negativity,
+        "rating": get_smiley_rating(positivity - negativity)
+    }
 
-# File uploader
-uploaded_file = st.file_uploader("Upload Email CSV", type=["csv"])
-
-if uploaded_file:
-    emails = pd.read_csv(uploaded_file)
+def generate_improvements(text, analysis):
+    suggestions = {"sender": [], "receiver": []}
     
-    # Ensure required columns exist
-    if all(col in emails.columns for col in ['Email', 'Sender', 'Date']):
-        
-        # --- Scale A: Individual Mail Analysis ---
-        st.subheader("📧 Per-Mail Analysis")
-        emails[['Negativity%', 'Positivity%', 'Mood']] = emails['Email'].apply(
-            lambda x: pd.Series(analyze_mail(x)))  # Removed extra parenthesis
-        
-        # --- Scale B: Sender-Receiver Pairs ---
-        st.subheader("👥 Sender/Receiver Trends")
-        sender_stats = emails.groupby('Sender').agg({
-            'Negativity%': 'mean',
-            'Positivity%': 'mean'
-        }).reset_index()
-        sender_stats['Mood'] = sender_stats.apply(
-            lambda x: get_smiley_scale(x['Positivity%'] - x['Negativity%']), axis=1)
-        
-        # Scale C: Overall Period Analysis
-        st.subheader("📅 Period Summary")
-        overall = {
-            'Avg Negativity': emails['Negativity%'].mean(),
-            'Avg Positivity': emails['Positivity%'].mean(),
-            'Overall Mood': get_smiley_scale(
-                emails['Positivity%'].mean() - emails['Negativity%'].mean())
-        }
-        
-        # Display all scales
-        col1, col2, col3 = st.columns(3)
-        with col1:
-            st.dataframe(emails[['Sender', 'Email', 'Mood']].head(10))
-        with col2:
-            st.dataframe(sender_stats)
-        with col3:
-            st.metric("Overall Mood", overall['Overall Mood'])
-        
-        # Smiley visualization
-        st.subheader("😊 Smiley Scale Guide")
-        st.write("""
-        | Score Range | Mood        | Smiley |
-        |-------------|-------------|--------|
-        | 80-100      | Very Positive | 😊     |
-        | 60-79       | Positive    | 🙂     |
-        | 40-59       | Neutral     | 😐     |
-        | 20-39       | Negative    | 🙁     |
-        | 0-19        | Very Negative | 😠     |
-        """)
-        
+    # Sender improvements
+    if analysis['negativity'] > 70:
+        suggestions['sender'].append(
+            f"🔴 Replace negative phrasing: Try 'Opportunity to improve {text.split()[0]}'"
+        )
+    
+    if analysis['positivity'] < 30:
+        suggestions['sender'].append(
+            "💡 Add positive reinforcement: Recognize what's working well"
+        )
+    
+    # Receiver responses
+    if analysis['negativity'] > 50:
+        suggestions['receiver'].append(
+            "📌 Response template: 'What specific changes would you like to see?'"
+        )
+    
+    return suggestions
+
+# --- Page: Email Analysis ---
+if page == "🔍 Analyze":
+    st.header("Email Sentiment Analysis")
+    
+    # File Uploader with Validation
+    uploaded_file = st.file_uploader("Upload Email CSV", type=["csv"], 
+                                   help="Requires columns: Date, Sender, Email")
+    
+    if uploaded_file:
+        try:
+            emails = pd.read_csv(uploaded_file)
+            if not all(col in emails.columns for col in ['Date', 'Sender', 'Email']):
+                st.error("Missing required columns. Using sample data.")
+                emails = pd.DataFrame(SAMPLE_DATA)
+        except Exception as e:
+            st.error(f"Error reading file: {str(e)}")
+            emails = pd.DataFrame(SAMPLE_DATA)
     else:
-        st.error("CSV must contain 'Email', 'Sender', and 'Date' columns")
-else:
-    st.info("Please upload a CSV file to begin analysis")
+        emails = pd.DataFrame(SAMPLE_DATA)
+        st.info("Using sample data. Upload a CSV to analyze your emails.")
 
-# After your file uploader, add this validation:
-if uploaded_file:
-    try:
-        emails = pd.read_csv(uploaded_file)
+    # Date Filtering
+    min_date = emails['Date'].min()
+    max_date = emails['Date'].max()
+    date_range = st.date_input("Analysis Period:", [min_date, max_date])
+    
+    # Process Emails
+    results = []
+    for _, row in emails.iterrows():
+        analysis = analyze_email(row['Email'])
+        suggestions = generate_improvements(row['Email'], analysis)
         
-        # --- Add this validation check ---
-        if emails.empty:
-            st.warning("Uploaded file is empty. Using sample data.")
-            emails = pd.DataFrame(sample_data)  # Your fallback data
-        
-        # --- Then proceed with your analysis loop ---
-        for _, row in emails.iterrows():
-            text = row["Email"]
-            sender = row["Sender"]
+        results.append({
+            **row,
+            **analysis,
+            "suggestions": suggestions
+        })
+    
+    # Display Results
+    for email in results:
+        with st.container():
+            st.markdown(f"### ✉️ {email['Sender']}")
             
-            # Rest of your analysis code...
+            # Metrics Cards
+            col1, col2, col3 = st.columns(3)
+            with col1:
+                st.markdown('<div class="metric-card">'
+                           f'<h3 class="negative">Negativity</h3>'
+                           f'<h2>{email["negativity"]}%</h2></div>', 
+                           unsafe_allow_html=True)
+            with col2:
+                st.markdown('<div class="metric-card">'
+                           f'<h3 class="positive">Positivity</h3>'
+                           f'<h2>{email["positivity"]}%</h2></div>', 
+                           unsafe_allow_html=True)
+            with col3:
+                st.markdown('<div class="metric-card">'
+                           f'<h3>Overall Rating</h3>'
+                           f'<h2>{email["rating"]}</h2></div>', 
+                           unsafe_allow_html=True)
             
-    except Exception as e:
-        st.error(f"Error reading file: {str(e)}")
-        emails = pd.DataFrame(sample_data)  # Fallback to sample datav
+            # Suggestions
+            with st.expander("✏️ Improvement Recommendations", expanded=True):
+                tab1, tab2 = st.tabs(["For Sender", "For Receiver"])
+                
+                with tab1:
+                    if email['suggestions']['sender']:
+                        for suggestion in email['suggestions']['sender']:
+                            st.write(f"- {suggestion}")
+                    else:
+                        st.success("No major improvements needed!")
+                
+                with tab2:
+                    if email['suggestions']['receiver']:
+                        for suggestion in email['suggestions']['receiver']:
+                            st.write(f"- {suggestion}")
+                    else:
+                        st.info("Standard response appropriate")
+            
+            st.markdown("---")
+
+# --- Page: Dashboard ---
+elif page == "📊 Dashboard":
+    st.header("Executive Dashboard")
+    # Add KPIs, charts, etc. (placeholder)
+    st.write("Under development - coming soon!")
+    
+# --- Page: Reports ---
+elif page == "📈 Reports":
+    st.header("Custom Reports")
+    # Add reporting tools (placeholder)
+    st.write("Under development - coming soon!")
+
+# --- Footer ---
+st.markdown("---")
+st.markdown('<div style="text-align: center; color: #666;">'
+            '© 2024 Renault-Nissan Alliance | v2.0 | AI Email Analytics'
+            '</div>', unsafe_allow_html=True)
