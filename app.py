@@ -40,7 +40,7 @@ with col2:
 
 # --- Authentication (Demo Version) ---
 password = st.sidebar.text_input("Enter Access Key:", type="password")
-if password != "RNT2024":
+if password != "RNT2025":
     st.sidebar.error("Invalid credentials")
     st.stop()
 
@@ -201,5 +201,5 @@ elif page == "📈 Reports":
 # --- Footer ---
 st.markdown("---")
 st.markdown('<div style="text-align: center; color: #666;">'
-            '© 2024 Renault-Nissan Alliance | v2.0 | AI Email Analytics'
+            '© 2025 Renault-Nissan Alliance | v2.0 | AI Email Analytics'
             '</div>', unsafe_allow_html=True)
