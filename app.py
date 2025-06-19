@@ -168,3 +168,24 @@ if uploaded_file:
         st.error("CSV must contain 'Email', 'Sender', and 'Date' columns")
 else:
     st.info("Please upload a CSV file to begin analysis")
+
+# After your file uploader, add this validation:
+if uploaded_file:
+    try:
+        emails = pd.read_csv(uploaded_file)
+        
+        # --- Add this validation check ---
+        if emails.empty:
+            st.warning("Uploaded file is empty. Using sample data.")
+            emails = pd.DataFrame(sample_data)  # Your fallback data
+        
+        # --- Then proceed with your analysis loop ---
+        for _, row in emails.iterrows():
+            text = row["Email"]
+            sender = row["Sender"]
+            
+            # Rest of your analysis code...
+            
+    except Exception as e:
+        st.error(f"Error reading file: {str(e)}")
+        emails = pd.DataFrame(sample_data)  # Fallback to sample datav
