@@ -61,26 +61,25 @@ st.title("Renault-Nissan Email Sentiment Analyzer")
 # Date range selector
 date_range = st.date_input("Select analysis period:", [])
 
-for _, row in emails.iterrows():
-    text = row["Email"]
-    sender = row["Sender"]
+
     
-    # --- Existing Analysis (Keep your current metrics) ---
-    negativity, clarity, smiley = analyze_mail(text)  # Your current function
-    
-    # --- NEW: Identify & Suggest Section ---
-    st.subheader(f"✉️ Analysis: {sender}")
-    
-    # Metrics Dashboard
+st.subheader(f"Analysis: {row['Sender']}")
     col1, col2 = st.columns(2)
-    with col1:
-        st.metric("Negativity Score", f"{negativity}%")
-        st.metric("Clarity Score", f"{clarity}%")
-    with col2:
-        st.metric("Suggested Action", smiley)
     
-    # --- Suggestion Engine ---
+    with col1:
+        st.metric("Negativity", f"{negativity}%")
+        st.metric("Clarity", f"{clarity}%")
+    
+    with col2:
+        st.metric("Suggested Action", smiley)  # Your existing smiley
+    
+    # NEW: Display suggestions
     suggestions = generate_suggestions(text, negativity, clarity)
+    with st.expander("✏️ Improvement Suggestions", expanded=True):
+        for suggestion in suggestions:
+            st.write(suggestion)
+    
+    st.markdown("---")  # Separator
     
     with st.expander("🛠️ **Improvement Recommendations**", expanded=True):
         # Sender-Focused Fixes
