@@ -8,6 +8,29 @@ from PIL import Image
 import requests
 from io import BytesIO
 
+def generate_suggestions(text, negativity, clarity):
+    """Generates AI-powered improvement suggestions"""
+    suggestions = []
+    
+    # Negativity fixes
+    if negativity > 70:
+        suggestions.append("🔴 **High Negativity**: Consider rewording strong language. "
+                         f"Try: 'Please review {text.split()[0]} for improvement'")
+    
+    if clarity < 60:
+        vague_terms = ["maybe", "later", "unsure", "perhaps"]
+        found = [term for term in vague_terms if term in text.lower()]
+        if found:
+            suggestions.append(f"🟡 **Clarity Issue**: Replace vague terms ({', '.join(found)}) "
+                             "with specific deadlines/actions")
+    
+    # Constructive feedback template
+    if any(x in text.lower() for x in ["failed", "wrong", "bad"]):
+        suggestions.append("💡 **Constructive Alternative**: "
+                         "Try: 'Let's improve this together by...'")
+    
+    return suggestions if suggestions else ["✅ No major issues detected"]
+
 # Your image URL (upload to Imgur/GitHub first)
 LOGO_URL = "https://rntbci.in/images/rntbci-logo.svg"  # ← Replace with your image URL
 
@@ -37,6 +60,40 @@ st.title("Renault-Nissan Email Sentiment Analyzer")
 
 # Date range selector
 date_range = st.date_input("Select analysis period:", [])
+
+for _, row in emails.iterrows():
+    text = row["Email"]
+    sender = row["Sender"]
+    
+    # --- Existing Analysis (Keep your current metrics) ---
+    negativity, clarity, smiley = analyze_mail(text)  # Your current function
+    
+    # --- NEW: Identify & Suggest Section ---
+    st.subheader(f"✉️ Analysis: {sender}")
+    
+    # Metrics Dashboard
+    col1, col2 = st.columns(2)
+    with col1:
+        st.metric("Negativity Score", f"{negativity}%")
+        st.metric("Clarity Score", f"{clarity}%")
+    with col2:
+        st.metric("Suggested Action", smiley)
+    
+    # --- Suggestion Engine ---
+    suggestions = generate_suggestions(text, negativity, clarity)
+    
+    with st.expander("🛠️ **Improvement Recommendations**", expanded=True):
+        # Sender-Focused Fixes
+        st.markdown("**✍️ Sender Should:**")
+        for suggestion in suggestions['sender']:
+            st.write(f"- {suggestion}")
+        
+        # Receiver-Focused Fixes
+        st.markdown("**📩 Receiver Should:**")
+        for suggestion in suggestions['receiver']:
+            st.write(f"- {suggestion}")
+    
+    st.markdown("---")  # Visual separator
 
 # File uploader
 uploaded_file = st.file_uploader("Upload Email CSV", type=["csv"])
