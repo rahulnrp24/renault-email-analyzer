@@ -83,7 +83,8 @@ st.markdown("""
 # --- Branding Header ---
 col1, col2 = st.columns([1, 4])
 with col1:
-    st.image("https://placehold.co/120x60/003087/ffffff?text=RENAULT", width=120)
+    # Updated logo using the provided image file
+    st.image("http://googleusercontent.com/file_content/1", width=120, caption="Renault-Nissan Logo")
 with col2:
     st.title("Renault-Nissan Email Sentiment Intelligence")
     st.markdown("An AI-powered tool for analyzing email sentiment and clarity.")
@@ -95,8 +96,8 @@ if password != "RNT2025":
     st.stop()
 
 # --- Navigation ---
-# Removed "✍️ Simple Text Analyzer" from the menu
-page = st.sidebar.radio("Menu", ["📊 Dashboard", "🔍 Analyze", "📈 Reports"])
+# Removed "📈 Reports" from the menu
+page = st.sidebar.radio("Menu", ["📊 Dashboard", "🔍 Analyze"])
 
 # --- Sample Data ---
 SAMPLE_DATA = {
