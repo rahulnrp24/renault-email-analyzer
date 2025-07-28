@@ -7,7 +7,8 @@ import io
 import datetime
 import json
 import requests
-import subprocess # Keep subprocess for potential fallback, though direct nltk.download is preferred
+import subprocess
+import os # NEW: Import the os module to access environment variables
 
 # --- NLTK Initialization (Cached for performance) ---
 @st.cache_resource
@@ -20,7 +21,7 @@ def download_nltk_data():
         nltk.download('vader_lexicon', quiet=True)
     except Exception as e:
         st.error(f"Error downloading NLTK vader_lexicon: {e}. Please check your internet connection or try again.")
-        st.stop() # Stop app execution if essential data cannot be downloaded
+        st.stop()
     return SentimentIntensityAnalyzer()
 
 sia = download_nltk_data()
@@ -28,7 +29,7 @@ sia = download_nltk_data()
 # --- App Configuration ---
 st.set_page_config(
     page_title="Renault-Nissan Email AI",
-    page_icon="🚗", # Valid car emoji
+    page_icon="🚗",
     layout="wide",
     initial_sidebar_state="expanded"
 )
@@ -57,7 +58,7 @@ st.markdown("""
     /* Styling for blockquotes/suggestions */
     .st-bq { border-left: 5px solid #003087; }
     /* Ensure image in header is aligned */
-    .st-emotion-cache-1v0mbgd { /* Targets the div containing the image */
+    .st-emotion-cache-1v0mbgd {
         display: flex;
         align-items: center;
         justify-content: center;
@@ -93,7 +94,6 @@ if password != "RNT2025":
     st.stop()
 
 # --- Navigation ---
-# Removed "📈 Reports" from the menu
 page = st.sidebar.radio("Menu", ["📊 Dashboard", "🔍 Analyze"])
 
 # --- Sample Data ---
@@ -181,9 +181,15 @@ def generate_llm_suggestions(email_text, sentiment_analysis):
     chatHistory = []
     chatHistory.append({"role": "user", "parts": [{"text": prompt}]})
     
-    # IMPORTANT: The API key for Gemini models is automatically provided by the Canvas environment
-    # if left as an empty string. DO NOT hardcode your API key here for security reasons.
-    apiKey = "" 
+    # IMPORTANT: If running locally, you MUST set an environment variable named "API_KEY"
+    # with your Google Gemini API key. Example (Windows Command Prompt): set API_KEY="YOUR_KEY_HERE"
+    # If running in a Canvas environment, the platform automatically provides the key if apiKey is empty.
+    apiKey = os.getenv("API_KEY", "") # Reads API key from environment variable, defaults to empty string
+    
+    if not apiKey:
+        st.warning("API Key not found. AI suggestions will not work. Please set the 'API_KEY' environment variable.")
+        return {"sender_suggestions": ["API Key is missing.", "Please configure your environment variable."], "receiver_suggestions": ["API Key is missing.", "Please configure your environment variable."]}
+
     apiUrl = f"https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key={apiKey}"
 
     payload = {
