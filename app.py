@@ -430,4 +430,4 @@ st.markdown('<div class="footer">'
             '© 2025 Renault-Nissan Alliance | v2.0 | AI Email Analytics'
             '</div>', unsafe_allow_html=True)
 
-�
+
