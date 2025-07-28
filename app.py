@@ -9,9 +9,7 @@ import json
 import requests
 import subprocess # Keep subprocess for potential fallback, though direct nltk.download is preferred
 
-# New imports for the simple sentiment analyzer
-from textblob import TextBlob
-from streamlit_extras.let_it_rain import rain
+# Removed imports for textblob and streamlit_extras.let_it_rain
 
 # --- NLTK Initialization (Cached for performance) ---
 @st.cache_resource
@@ -29,29 +27,12 @@ def download_nltk_data():
 
 sia = download_nltk_data()
 
-# --- TextBlob Corpora Download (Cached for performance) ---
-@st.cache_resource
-def download_textblob_corpora():
-    """
-    Downloads necessary NLTK corpora for TextBlob.
-    TextBlob relies on 'punkt' for tokenization and 'wordnet' for lemmatization.
-    'brown' is also commonly used by TextBlob for some functionalities.
-    """
-    try:
-        nltk.download('punkt', quiet=True)
-        nltk.download('wordnet', quiet=True)
-        nltk.download('brown', quiet=True) # TextBlob often uses the 'brown' corpus
-    except Exception as e:
-        st.error(f"Error downloading TextBlob corpora (punkt, wordnet, brown): {e}. Please check your internet connection or try again.")
-        st.stop() # Stop app execution if essential data cannot be downloaded
-    return True # Return anything to indicate it's done
-
-_ = download_textblob_corpora() # Call the cached function to ensure corpora are downloaded
+# Removed TextBlob Corpora Download function
 
 # --- App Configuration ---
 st.set_page_config(
     page_title="Renault-Nissan Email AI",
-    page_icon="🚗", # Corrected from '' to a valid car emoji
+    page_icon="🚗", # Valid car emoji
     layout="wide",
     initial_sidebar_state="expanded"
 )
@@ -114,7 +95,8 @@ if password != "RNT2025":
     st.stop()
 
 # --- Navigation ---
-page = st.sidebar.radio("Menu", ["📊 Dashboard", "🔍 Analyze", "✍️ Simple Text Analyzer", "📈 Reports"])
+# Removed "✍️ Simple Text Analyzer" from the menu
+page = st.sidebar.radio("Menu", ["📊 Dashboard", "🔍 Analyze", "📈 Reports"])
 
 # --- Sample Data ---
 SAMPLE_DATA = {
@@ -338,47 +320,7 @@ if page == "🔍 Analyze":
             
             st.markdown("---")
 
-# --- Page: Simple Text Analyzer (NEW) ---
-elif page == "✍️ Simple Text Analyzer":
-    st.header("Simple Text Sentiment Analysis")
-    st.write("Analyze the sentiment of any custom text using TextBlob.")
-
-    message = st.text_area("Please Enter your text here:", height=150)
-
-    if st.button("Analyze Sentiment"):
-        if message: # Ensure there's text to analyze
-            blob = TextBlob(message)
-            result = blob.sentiment
-            polarity = result.polarity
-            subjectivity = result.subjectivity
-
-            st.subheader("Analysis Results:")
-            st.write(f"**Polarity:** {polarity:.2f} (Range: -1 to +1, where -1 is negative, +1 is positive)")
-            st.write(f"**Subjectivity:** {subjectivity:.2f} (Range: 0 to +1, where 0 is objective, +1 is subjective)")
-
-            if polarity < 0:
-                st.warning(f"The entered text has **negative sentiments** associated with it. (Polarity: {polarity:.2f})")
-                rain(
-                    emoji="🌧️", # Corrected emoji
-                    font_size=20,
-                    falling_speed=3,
-                    animation_length="infinite",
-                )
-            elif polarity > 0:
-                st.success(f"The entered text has **positive sentiments** associated with it. (Polarity: {polarity:.2f})")
-                rain(
-                    emoji="✨", # Corrected emoji
-                    font_size=20,
-                    falling_speed=3,
-                    animation_length="infinite",
-                )
-            else: # Polarity is 0
-                st.info(f"The entered text has a **neutral sentiment**. (Polarity: {polarity:.2f})")
-            
-            st.markdown(f"Raw TextBlob Sentiment: `{result}`")
-        else:
-            st.info("Please enter some text to analyze.")
-
+# Removed the "Simple Text Analyzer" page logic
 
 # --- Page: Dashboard (Existing) ---
 elif page == "📊 Dashboard":
