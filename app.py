@@ -5,25 +5,53 @@ import nltk
 from PIL import Image
 import io
 import datetime
-import json # For handling JSON responses from LLM
-import requests # For making API calls to LLM
+import json
+import requests
+import subprocess # Keep subprocess for potential fallback, though direct nltk.download is preferred
+
+# New imports for the simple sentiment analyzer
+from textblob import TextBlob
+from streamlit_extras.let_it_rain import rain
 
 # --- NLTK Initialization (Cached for performance) ---
-# Use st.cache_resource to download NLTK data only once per session
 @st.cache_resource
 def download_nltk_data():
+    """
+    Downloads the VADER lexicon for NLTK sentiment analysis.
+    Uses quiet=True to suppress console output if already downloaded.
+    """
     try:
-        nltk.data.find('sentiment/vader_lexicon.zip')
-    except nltk.downloader.DownloadError:
         nltk.download('vader_lexicon', quiet=True)
+    except Exception as e:
+        st.error(f"Error downloading NLTK vader_lexicon: {e}. Please check your internet connection or try again.")
+        st.stop() # Stop app execution if essential data cannot be downloaded
     return SentimentIntensityAnalyzer()
 
 sia = download_nltk_data()
 
+# --- TextBlob Corpora Download (Cached for performance) ---
+@st.cache_resource
+def download_textblob_corpora():
+    """
+    Downloads necessary NLTK corpora for TextBlob.
+    TextBlob relies on 'punkt' for tokenization and 'wordnet' for lemmatization.
+    'brown' is also commonly used by TextBlob for some functionalities.
+    """
+    try:
+        nltk.download('punkt', quiet=True)
+        nltk.download('wordnet', quiet=True)
+        nltk.download('brown', quiet=True) # TextBlob often uses the 'brown' corpus
+    except Exception as e:
+        st.error(f"Error downloading TextBlob corpora (punkt, wordnet, brown): {e}. Please check your internet connection or try again.")
+        st.stop() # Stop app execution if essential data cannot be downloaded
+    return True # Return anything to indicate it's done
+
+_ = download_textblob_corpora() # Call the cached function to ensure corpora are downloaded
+
 # --- App Configuration ---
 st.set_page_config(
     page_title="Renault-Nissan Email AI",
-    page_icon="�",
+    page_icon="🚗", # Corrected from '' to a valid car emoji
     layout="wide",
     initial_sidebar_state="expanded"
 )
@@ -74,27 +102,23 @@ st.markdown("""
 # --- Branding Header ---
 col1, col2 = st.columns([1, 4])
 with col1:
-    # Using a placeholder image for the logo as the original URL might not be stable
-    # In a real app, you'd host this yourself or use a more stable CDN
     st.image("https://placehold.co/120x60/003087/ffffff?text=RENAULT", width=120)
 with col2:
     st.title("Renault-Nissan Email Sentiment Intelligence")
     st.markdown("An AI-powered tool for analyzing email sentiment and clarity.")
 
 # --- Authentication (Demo Version - Not for Production) ---
-# In a real application, implement a secure authentication system (e.g., OAuth, Firebase Auth)
 password = st.sidebar.text_input("Enter Access Key:", type="password")
 if password != "RNT2025":
     st.sidebar.error("Invalid credentials")
-    st.stop() # Stop execution if password is wrong
+    st.stop()
 
 # --- Navigation ---
-page = st.sidebar.radio("Menu", ["📊 Dashboard", "🔍 Analyze", "📈 Reports"])
+page = st.sidebar.radio("Menu", ["📊 Dashboard", "🔍 Analyze", "✍️ Simple Text Analyzer", "📈 Reports"])
 
 # --- Sample Data ---
-# Ensure 'Date' column is datetime objects for proper filtering
 SAMPLE_DATA = {
-    "Date": [datetime.date.today() - datetime.timedelta(days=i) for i in range(5)], # 5 sample emails over 5 days
+    "Date": [datetime.date.today() - datetime.timedelta(days=i) for i in range(5)],
     "Sender": ["manager@renault.com", "team@nissan.com", "ceo@nissan.com", "hr@renault.com", "supplier@external.com"],
     "Email": [
         "The prototype failed safety tests. This needs urgent revision. The results were disappointing and unclear.",
@@ -105,17 +129,12 @@ SAMPLE_DATA = {
     ]
 }
 
-# Convert sample data to DataFrame and ensure 'Date' is datetime
 sample_df = pd.DataFrame(SAMPLE_DATA)
 sample_df['Date'] = pd.to_datetime(sample_df['Date'])
 
 # --- Core Analysis Functions ---
 
 def get_smiley_rating(score):
-    """Maps a sentiment score to a smiley emoji and descriptive label."""
-    # VADER scores range from -1 (most negative) to +1 (most positive)
-    # We'll map a scaled score (0-100) to smileys.
-    # The 'overall' score from analyze_email is already scaled from -100 to 100.
     if score >= 60:
         return "😊 Excellent"
     elif score >= 20:
@@ -128,41 +147,23 @@ def get_smiley_rating(score):
         return "😠 Critical"
 
 def calculate_readability(text):
-    """
-    Calculates a simple readability score as a proxy for clarity.
-    This is a very basic implementation and can be expanded with more
-    sophisticated NLP techniques or dedicated readability libraries (e.g., textstat).
-    Lower score indicates more complex/less clear text.
-    """
     words = text.split()
     num_words = len(words)
     num_sentences = text.count('.') + text.count('!') + text.count('?')
     
     if num_sentences == 0:
-        return 100 # Assume very clear if no sentences (e.g., short phrases)
+        return 100
     
-    # Simple average words per sentence - lower is often clearer
     avg_words_per_sentence = num_words / num_sentences
-    
-    # Simple score: higher means clearer (e.g., fewer complex words, shorter sentences)
-    # This is a heuristic. A real clarity model would be much more complex.
-    clarity_score = max(0, 100 - (avg_words_per_sentence * 5)) # Scale it
+    clarity_score = max(0, 100 - (avg_words_per_sentence * 5))
     return round(clarity_score, 1)
 
-
 def analyze_email(text):
-    """
-    Analyzes email text for sentiment using VADER and calculates a simple clarity score.
-    """
     scores = sia.polarity_scores(text)
     negativity = round(scores['neg'] * 100, 1)
     positivity = round(scores['pos'] * 100, 1)
-    
-    # Compound score is a normalized, weighted composite score.
-    # We'll scale it to be between -100 and 100 for easier interpretation.
     overall_sentiment_score = round(scores['compound'] * 100, 1)
-    
-    clarity_score = calculate_readability(text) # Add clarity score
+    clarity_score = calculate_readability(text)
 
     return {
         "negativity": negativity,
@@ -174,10 +175,6 @@ def analyze_email(text):
 
 @st.cache_data(show_spinner="Generating AI suggestions...")
 def generate_llm_suggestions(email_text, sentiment_analysis):
-    """
-    Generates AI-powered suggestions using the Gemini API based on email content
-    and its sentiment/clarity analysis.
-    """
     prompt = f"""
     Analyze the following email for its sentiment and clarity.
     Email: "{email_text}"
@@ -202,9 +199,8 @@ def generate_llm_suggestions(email_text, sentiment_analysis):
     """
 
     chatHistory = []
-    chatHistory.push({ role: "user", parts: [{ text: prompt }] });
+    chatHistory.append({"role": "user", "parts": [{"text": prompt}]})
     
-    # Placeholder for the actual API key. In a real application, manage this securely.
     apiKey = "" 
     apiUrl = f"https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key={apiKey}"
 
@@ -225,11 +221,10 @@ def generate_llm_suggestions(email_text, sentiment_analysis):
 
     try:
         response = requests.post(apiUrl, headers={'Content-Type': 'application/json'}, data=json.dumps(payload))
-        response.raise_for_status() # Raise an HTTPError for bad responses (4xx or 5xx)
+        response.raise_for_status()
         result = response.json()
         
         if result.get('candidates') and result['candidates'][0].get('content') and result['candidates'][0]['content'].get('parts'):
-            # The LLM response is a string that needs to be parsed as JSON
             json_string = result['candidates'][0]['content']['parts'][0]['text']
             suggestions = json.loads(json_string)
             return suggestions
@@ -247,18 +242,16 @@ def generate_llm_suggestions(email_text, sentiment_analysis):
         return {"sender_suggestions": ["An unknown error occurred.", "Please try again."], "receiver_suggestions": ["An unknown error occurred.", "Please try again."]}
 
 
-# --- Page: Email Analysis ---
+# --- Page: Email Analysis (Existing) ---
 if page == "🔍 Analyze":
     st.header("Email Sentiment & Clarity Analysis")
     
-    # File Uploader with Validation
     uploaded_file = st.file_uploader("Upload Email CSV", type=["csv"], 
                                      help="Requires columns: 'Date', 'Sender', 'Email'")
     
     if uploaded_file:
         try:
             emails_df = pd.read_csv(uploaded_file)
-            # Ensure 'Date' column is datetime
             emails_df['Date'] = pd.to_datetime(emails_df['Date'])
             if not all(col in emails_df.columns for col in ['Date', 'Sender', 'Email']):
                 st.error("Uploaded CSV is missing required columns ('Date', 'Sender', 'Email'). Using sample data.")
@@ -270,8 +263,6 @@ if page == "🔍 Analyze":
         emails_df = sample_df
         st.info("Using sample data. Upload a CSV to analyze your emails.")
 
-    # Date Filtering
-    # Ensure min_date and max_date are actual date objects, not timestamps
     min_date_available = emails_df['Date'].min().date()
     max_date_available = emails_df['Date'].max().date()
 
@@ -282,35 +273,30 @@ if page == "🔍 Analyze":
         max_value=max_date_available
     )
     
-    # Apply date filter if valid range is selected
     if len(date_range) == 2:
         start_date = pd.to_datetime(date_range[0])
         end_date = pd.to_datetime(date_range[1])
-        # Filter the DataFrame based on the selected date range
         filtered_emails_df = emails_df[(emails_df['Date'] >= start_date) & (emails_df['Date'] <= end_date)]
         if filtered_emails_df.empty:
             st.warning("No emails found for the selected date range. Displaying all available emails.")
-            emails_to_process = emails_df # Revert to all if filter yields nothing
+            emails_to_process = emails_df
         else:
             emails_to_process = filtered_emails_df
     else:
-        emails_to_process = emails_df # If date input is not fully selected, show all
+        emails_to_process = emails_df
 
     st.subheader(f"Analyzing {len(emails_to_process)} Emails")
 
-    # Process Emails and display results
     for index, row in emails_to_process.iterrows():
         email_text = row['Email']
         analysis = analyze_email(email_text)
         
-        # Generate LLM suggestions
         llm_suggestions = generate_llm_suggestions(email_text, analysis)
         
         with st.container():
             st.markdown(f"### ✉️ Email from {row['Sender']} on {row['Date'].strftime('%Y-%m-%d')}")
-            st.markdown(f"> *{email_text}*") # Display the email content
+            st.markdown(f"> *{email_text}*")
 
-            # Metrics Cards
             col1, col2, col3, col4 = st.columns(4)
             with col1:
                 st.markdown(f'<div class="metric-card">'
@@ -331,9 +317,8 @@ if page == "🔍 Analyze":
                 st.markdown(f'<div class="metric-card">'
                             f'<h3>Clarity Score</h3>'
                             f'<h2>{analysis["clarity_score"]}/100</h2></div>', 
-                            unsafe_allow_html=True) # Display clarity score
+                            unsafe_allow_html=True)
             
-            # Suggestions
             with st.expander("✏️ AI-Powered Improvement Recommendations", expanded=True):
                 tab1, tab2 = st.tabs(["For Sender", "For Receiver"])
                 
@@ -351,18 +336,58 @@ if page == "🔍 Analyze":
                     else:
                         st.info("No specific receiver suggestions generated by AI for this email.")
             
-            st.markdown("---") # Separator for each email
+            st.markdown("---")
 
-# --- Page: Dashboard ---
+# --- Page: Simple Text Analyzer (NEW) ---
+elif page == "✍️ Simple Text Analyzer":
+    st.header("Simple Text Sentiment Analysis")
+    st.write("Analyze the sentiment of any custom text using TextBlob.")
+
+    message = st.text_area("Please Enter your text here:", height=150)
+
+    if st.button("Analyze Sentiment"):
+        if message: # Ensure there's text to analyze
+            blob = TextBlob(message)
+            result = blob.sentiment
+            polarity = result.polarity
+            subjectivity = result.subjectivity
+
+            st.subheader("Analysis Results:")
+            st.write(f"**Polarity:** {polarity:.2f} (Range: -1 to +1, where -1 is negative, +1 is positive)")
+            st.write(f"**Subjectivity:** {subjectivity:.2f} (Range: 0 to +1, where 0 is objective, +1 is subjective)")
+
+            if polarity < 0:
+                st.warning(f"The entered text has **negative sentiments** associated with it. (Polarity: {polarity:.2f})")
+                rain(
+                    emoji="🌧️", # Corrected emoji
+                    font_size=20,
+                    falling_speed=3,
+                    animation_length="infinite",
+                )
+            elif polarity > 0:
+                st.success(f"The entered text has **positive sentiments** associated with it. (Polarity: {polarity:.2f})")
+                rain(
+                    emoji="✨", # Corrected emoji
+                    font_size=20,
+                    falling_speed=3,
+                    animation_length="infinite",
+                )
+            else: # Polarity is 0
+                st.info(f"The entered text has a **neutral sentiment**. (Polarity: {polarity:.2f})")
+            
+            st.markdown(f"Raw TextBlob Sentiment: `{result}`")
+        else:
+            st.info("Please enter some text to analyze.")
+
+
+# --- Page: Dashboard (Existing) ---
 elif page == "📊 Dashboard":
     st.header("Executive Dashboard: Overall Email Trends")
     st.write("This dashboard provides an aggregated view of email sentiment and clarity.")
 
-    # Use the full sample_df for dashboard calculations initially
     dashboard_df = sample_df.copy()
 
     if not dashboard_df.empty:
-        # Calculate overall metrics
         dashboard_df['negativity'] = dashboard_df['Email'].apply(lambda x: analyze_email(x)['negativity'])
         dashboard_df['positivity'] = dashboard_df['Email'].apply(lambda x: analyze_email(x)['positivity'])
         dashboard_df['overall_sentiment_score'] = dashboard_df['Email'].apply(lambda x: analyze_email(x)['overall_sentiment_score'])
@@ -393,7 +418,6 @@ elif page == "📊 Dashboard":
                         f'<h2>{avg_clarity:.1f}/100</h2></div>', unsafe_allow_html=True)
 
         st.subheader("Sentiment Trend Over Time")
-        # Group by date and calculate average sentiment
         daily_sentiment = dashboard_df.groupby(dashboard_df['Date'].dt.date)['overall_sentiment_score'].mean().reset_index()
         daily_sentiment.columns = ['Date', 'Average Sentiment Score']
         st.line_chart(daily_sentiment.set_index('Date'))
@@ -429,5 +453,3 @@ st.markdown("---")
 st.markdown('<div class="footer">'
             '© 2025 Renault-Nissan Alliance | v2.0 | AI Email Analytics'
             '</div>', unsafe_allow_html=True)
-
-
